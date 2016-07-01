@@ -8,4 +8,6 @@
                  [prismatic/schema "1.1.2"]
                  [org.clojure/core.async "0.2.385"]
                  [org.clojure/data.json "0.2.6"]
-                 [org.clojure/math.combinatorics "0.1.3"]])
+                 [org.clojure/math.combinatorics "0.1.3"]]
+  :aot :all
+  :main sortable-challenge.core)

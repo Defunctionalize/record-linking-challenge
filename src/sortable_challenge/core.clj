@@ -1,8 +1,7 @@
 (ns sortable-challenge.core
   (:require [clojure.data.json :as json]
-            [sortable-challenge.constants :refer :all]
-            [sortable-challenge.utils :refer :all]
             [clojure.string :as str]
+            [clojure.java.io :as io]
             [clojure.core.async :refer [go <!! >!! <! >! chan onto-chan close!]]
             [clojure.math.combinatorics :refer [combinations]]
             [clojure.set :refer [superset?]]
@@ -19,6 +18,14 @@
 (def SEPARATOR-PATTERN (->case-insensitive-pattern SEPARATOR-PATTERN-STR))
 (def split-words #(str/split % SEPARATOR-PATTERN))
 (defn split-and-isolate-digits [string] (->> string split-words (map split-digit-letter-pairs) flatten))
+
+(defn ->data [str-list]
+  (-> str-list
+      (#(str "[" % "]"))
+      (json/read-str :key-fn keyword)))
+
+(def LISTINGS (-> "listings.txt" io/resource slurp ->data))
+(def PRODUCTS (-> "products.txt" io/resource slurp ->data))
 
 (defn contains-all-words? [important-words string]
   (->> important-words
