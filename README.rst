@@ -2,11 +2,11 @@
 Tyler Tolton
 ============
 .. image:: https://img.shields.io/badge/language-Clojure-red.svg
-:target: https://clojure.org/
+    :target: https://clojure.org/
 .. image:: https://img.shields.io/badge/IDE-intellij-green.svg
-:target: https://www.jetbrains.com/idea/
+    :target: https://www.jetbrains.com/idea/
 .. image:: https://img.shields.io/badge/overwatch-Tracer-blue.svg
-:target: http://overwatch.gamepedia.com/Tracer
+    :target: http://overwatch.gamepedia.com/Tracer
 Record Linkage Challenge for Sortable
 =====================================
 
