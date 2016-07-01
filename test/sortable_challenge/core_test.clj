@@ -25,14 +25,14 @@
 (deftest remove-contained-items-test
      (->> [{:product_name "pentax-wg-1-gps", :manufacturer "pentax", :model "wg-1 gps", :family "optio", :announced-date "2011-02-06t19:00:00.000-05:00"}
            {:product_name "pentax-wg-1", :manufacturer "pentax", :model "wg-1", :family "optio", :announced-date "2011-02-06t19:00:00.000-05:00"}]
-          (apply remove-contained-items)
+          (apply remove-subset-products)
           (diff [{:product_name "pentax-wg-1-gps", :manufacturer "pentax", :model "wg-1 gps", :family "optio", :announced-date "2011-02-06t19:00:00.000-05:00"}])
           no-difference
           is)
 
      (->> [{:product_name "canon_eos_500d", :manufacturer "canon", :model "500d", :family "eos", :announced-date "2009-03-24t20:00:00.000-04:00"}
            {:product_name "canon_eos_rebel_t1i", :manufacturer "canon", :model "t1i", :family "rebel", :announced-date "2009-03-24t20:00:00.000-04:00"}]
-          (apply remove-contained-items)
+          (apply remove-subset-products)
           (diff [{:product_name "canon_eos_500d", :manufacturer "canon", :model "500d", :family "eos", :announced-date "2009-03-24t20:00:00.000-04:00"}
                  {:product_name "canon_eos_rebel_t1i", :manufacturer "canon", :model "t1i", :family "rebel", :announced-date "2009-03-24t20:00:00.000-04:00"}])
           no-difference
@@ -55,12 +55,12 @@
 
 (deftest contains-all-product-words?-test
      (->> [example-listing example-product]
-          (apply contains-all-product-words?)
+          (apply contains-all-family-words?)
           (diff true)
           no-difference
           is)
      (->> [example-listing example-product]
-          (apply contains-all-product-words?)
+          (apply contains-all-family-words?)
           (diff true)
           no-difference
           is))

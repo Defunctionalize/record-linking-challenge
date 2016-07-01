@@ -17,6 +17,11 @@
 (defn split-and-isolate-digits [string] (->> string split-words (map split-digit-letter-pairs) flatten))
 (defn progress->out [message data] (println message) data)
 
+; A word on general strategy for splitting and searching strings.
+; In general, we want to treat - _ and whitespace the same.  I refer to them as separators.
+; I split anything separated, and I split letters and digits away from each other.
+; I refer to these groupings of imporant string components occasionally as "words" e.g. contains-model-words?
+
 (defn ->data [str-list]
   (-> str-list
       (#(str "[" % "]"))
@@ -25,54 +30,52 @@
 (def LISTINGS (-> "listings.txt" io/resource slurp ->data))
 (def PRODUCTS (-> "products.txt" io/resource slurp ->data))
 
-(defn contains-all-words? [important-words string]
-  (->> important-words
-       (map ->non-capture-group)
-       (interpose "|")
-       (apply str)
-       ->case-insensitive-pattern
-       (#(re-seq % string))
-       (into #{})
-       count
-       (= (count important-words))))
-
-(defn contains-all-product-words? [listing product]
-  (let [{:keys [manufacturer model product_name]} product
+(defn contains-all-family-words? [listing product]
+  "does the given listing title contain all the words words listed in the 'family' tag?"
+  (let [{:keys [family]} product
         {:keys [title]} listing
-        product-words    (->> product_name
-                              split-and-isolate-digits
-                              (filter #(not (= manufacturer %)))
-                              (filter (->> model
-                                           split-and-isolate-digits
-                                           (into #{})
-                                           complement)))]
-    (if (empty? product-words) true? (contains-all-words? product-words title))))
+        family-words (split-and-isolate-digits (or family ""))]
+    (->> family-words
+         (map ->non-capture-group)
+         (interpose "|")
+         (apply str)
+         ->case-insensitive-pattern
+         (#(re-seq % title))
+         (into #{})
+         count
+         (= (count family-words)))))
 
 (defn contains-model? [listing product]
-  (let [{:keys [model]} product
-        {:keys [title]} listing]
-    (re-find (->> model
-                  split-words
-                  (map split-digit-letter-pairs)
-                  flatten
-                  (interpose (str SEPARATOR-PATTERN-STR "*"))
-                  (apply str)
-                  surrounded-by-sep
-                  ->case-insensitive-pattern)
-             title)))
+  "does the listing title contain the model in some form?
 
-(defn remove-contained-items [& products]
-  (apply concat
-         (for [[a b] (combinations products 2)]
-           (let [[a-words b-words] (map (fn [product]
-                                          (->> product
-                                               :model
-                                               split-and-isolate-digits
-                                               (into #{})))
-                                        [a b])]
-             (cond (superset? a-words b-words) [a]
-                   (superset? b-words a-words) [b]
-                   :else [a b])))))
+  model strings are broken into components, by separating on both whitespace and by the border between digit groups
+  and character groups.
+
+  To avoid false positives, model components must be bordered by at least one separator on either side.
+  To avoid false negatives, model components may be separated by zero or more separators.
+  "
+  (let [{:keys [model]} product
+        {:keys [title]} listing
+        model-pattern (->> model
+                           split-and-isolate-digits
+                           (interpose (str SEPARATOR-PATTERN-STR "*"))
+                           (apply str)
+                           surrounded-by-sep
+                           ->case-insensitive-pattern)]
+    (re-find model-pattern title)))
+
+(defn remove-subset-products [& products]
+  "designed for corner cases where two products' model designations are the same, but one designation is more specific
+
+  e.g. Pentax-WG-1-GPS vs Pentax-WG-1.
+  We remove the less specific option, because entering this filter means the requirements for the both products
+  have been filled, therefor the listing must be referring to the more specific designation"
+  (let [extract-model-words (fn [product] (->> product :model split-and-isolate-digits (into #{})))]
+    (apply concat (for [[a b] (combinations products 2)]
+                    (let [[a-words b-words] (map extract-model-words [a b])]
+                      (cond (superset? a-words b-words) [a]
+                            (superset? b-words a-words) [b]
+                            :else [a b]))))))
 
 (def known-aliases-and-misspellings
   {"fuji" "fujifilm"
@@ -80,45 +83,31 @@
    "hp" "hewlett packard"})
 
 (defn manufacturer-match? [listing product]
+  "Determine if the manufacturer of the product and listing match.  Some manufacturers have aliases."
   (str/includes?
     (let [lower-name (str/lower-case (:manufacturer listing))] (known-aliases-and-misspellings lower-name lower-name))
-    (let [lower-name (str/lower-case (:manufacturer product))] (known-aliases-and-misspellings lower-name lower-name))
-    ))
+    (let [lower-name (str/lower-case (:manufacturer product))] (known-aliases-and-misspellings lower-name lower-name))))
 
-(defn which-product [products listing]
-  (->> products
-       (filter (partial manufacturer-match? listing))
-       (filter (partial contains-model? listing))
-       (#(if (-> % count (= 1)) % (filter (partial contains-all-product-words? listing) %)))
-       (#(if (-> % count (= 1)) % (apply remove-contained-items %)))))
+
 
 (defn divide-and-conquer [combining-func number-of-threads func coll]
+  "Perform map related work in parallel and combine the results.  Uses cors.async go blocks."
   (let [sections (partition-all (/ (count coll) number-of-threads) coll)
         result-chan (chan)]
-    (doall (map #(go (>! result-chan (func %))) sections))
-    (combining-func (take (count sections) (repeatedly #(<!! result-chan))))))
+    (doall (for [section sections] (go (>! result-chan (func section)))))
+    (combining-func (doall (for [section sections] (<!! result-chan))))))
 
 (def divide-and-merge (partial divide-and-conquer #(apply merge-with concat %) 64))
 
-(defn label-pairs [labels & pairs]
-  (for [pair pairs]
-    (->> pair
-         (map vector labels)
-         (into {}))))
-
-(defn write-to-file! [file contents]
-  (with-open [writer (io/writer (io/as-file file) :append true)]
-    (binding [*out* writer]
-      (println contents))))
-
 (defn match-type [[products]]
-  (cond
-    (->> products count (= 1)) :single-match
-    (->> products count (< 1)) :multiple-product-matches
-    :else :no-match
-    ))
+  (cond (->> products count (= 1)) :single-match
+        (->> products count (< 1)) :multiple-product-matches
+        :else :no-match))
+
+(defn label-pairs [labels & pairs] (for [pair pairs] (->> pair (map vector labels) (into {}))))
 
 (defn ->categories [product-matches]
+  "Process data into easily readable categories based on the number of product matches discovered"
   (let [{:keys [single-match multiple-product-matches no-match]} (group-by match-type product-matches)]
     {:single-match             (->> single-match
                                     (map #(vector (:product_name (first (first %))) (second %)))
@@ -126,13 +115,12 @@
      :multiple-product-matches (into {} multiple-product-matches)
      :no-match                 (second (first no-match))}))
 
-(defn write-results [output-location result-data]
-  (->> result-data
+(defn prettify-records [records]
+  (->> records
        (map #(json/write-str % :escape-unicode false))
        (interpose "\n")
        (apply str)
-       (str/trim)
-       (write-to-file! output-location)))
+       (str/trim)))
 
 (defn header [header-str]
   (->> ["===================================================="
@@ -143,6 +131,18 @@
        (interpose "\n")
        (apply str)))
 
+; These last two functions represent the heart of the functionality.
+
+(defn which-product [products listing]
+  "To which of the given products does the given listing correspond?
+
+  To decide, we pipe the products through a couple of filters.
+  Filters can be reordered or added to as new corner cases are discovered"
+  (->> products
+       (filter (partial manufacturer-match? listing))
+       (filter (partial contains-model? listing))
+       (#(if (-> % count (= 1)) % (filter (partial contains-all-family-words? listing) %)))
+       (#(if (-> % count (= 1)) % (apply remove-subset-products %)))))
 
 (defn -main [& [result-output-file secondary-output-file]]
   (let [result-output-file (or result-output-file "results.txt")
@@ -155,11 +155,11 @@
          (divide-and-merge #(group-by (partial which-product PRODUCTS) %))
          (divide-and-merge ->categories)
          (#(let [{:keys [multiple-product-matches single-match no-match]} %]
-            (write-results result-output-file single-match)
+            (spit result-output-file (prettify-records single-match) :append true)
             (println (str "wrote positive match results to " result-output-file))
             (spit secondary-output-file (header "MULTIPLE MATCHES") :append true)
-            (write-results secondary-output-file multiple-product-matches)
+            (spit secondary-output-file (prettify-records multiple-product-matches) :append true)
             (spit secondary-output-file (header "NO SUITABLE MATCH MATCH") :append true)
-            (write-results secondary-output-file no-match)
+            (spit secondary-output-file (prettify-records no-match) :append true)
             (println (str "wrote inconclusive and no match results to " secondary-output-file))))
          time)))
