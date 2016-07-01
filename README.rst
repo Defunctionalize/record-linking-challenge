@@ -63,6 +63,4 @@ I've worked with both massive companies and tiny startups, and I'm equally comfo
 gravitate to companies that look out for their developers, by trusting them with ownership and protecting them
 with strong adherence to good software engineering practices.  Communication, expectation, results.
 
-If you're interested in taking a look at my professional history, `here's a google docs link`_ to my resume
-.. _here's a google docs link: https://docs.google.com/document/d/1ZYZ57I0giSbuRFePaoHV7cJbRSBmUcekkcuLYbI_mtY/edit?usp=sharing
-
+If you're interested in taking a look at my professional history, `here's a google docs link <https://docs.google.com/document/d/1ZYZ57I0giSbuRFePaoHV7cJbRSBmUcekkcuLYbI_mtY/edit?usp=sharing>`_ to my resume.
