@@ -5,8 +5,8 @@ Tyler Tolton
     :target: https://clojure.org/
 .. image:: https://img.shields.io/badge/IDE-intellij-green.svg
     :target: https://www.jetbrains.com/idea/
-.. image:: https://img.shields.io/badge/overwatch-Tracer-blue.svg
-    :target: http://overwatch.gamepedia.com/Tracer
+.. image:: https://img.shields.io/badge/Overwatch-Tracer-blue.svg
+    :target: https://www.reddit.com/r/Overwatch/
 
 
 Record Linkage Challenge for Sortable
@@ -15,7 +15,7 @@ Record Linkage Challenge for Sortable
 Installation
 ------------
 
-The standalone JAR is in the repo in ``/target``.  Clone the repo and run -
+The standalone JAR is in the repo in ``/target``.  Clone the repo (or just download/extract the jar from the zip) and run -
 
 ``java -jar path/to/standalone-file.jar <desired_result_file_name> <desired_secondary_file_name>``
 
@@ -41,8 +41,8 @@ Priorities - In Order
   identifying accurately and avoiding classification errors.  This includes creating mechanisms for manual adjustment
   of known red flags within the program
 
-- **Speed**: The primary engine for speed here is parallelism with core.async.  We're leveraging immutable state to gain
-  infinitely an parallelizable sequence of operations.  This makes scaling a pretty easy matter in the short run by throwing
+- **Speed**: The primary engine for speed here is parallelism with core.async.  We're leveraging immutable state to gain an
+  infinitely parallelizable sequence of operations.  This makes scaling a pretty easy matter in the short run by throwing
   it onto a cloud server with multiple cpus.  Depending on your hardware configuration, you should see times between
   4 and 10 seconds for the sorting to complete.
 

@@ -1,4 +1,4 @@
-(defproject sortable-challenge "0.9.5"
+(defproject sortable-challenge "1.0.0"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :resource-paths ["resources"]
