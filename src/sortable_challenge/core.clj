@@ -15,6 +15,7 @@
 (def split-words #(str/split % SEPARATOR-PATTERN))
 (defn split-digit-letter-pairs [word]  (str/split word #"(?<=\d)(?=[^\d])|(?<=[^\d])(?=\d)"))
 (defn split-and-isolate-digits [string] (->> string split-words (map split-digit-letter-pairs) flatten))
+(defn progress->out [message data] (println message) data)
 
 (defn ->data [str-list]
   (-> str-list
@@ -91,20 +92,13 @@
        (#(if (-> % count (= 1)) % (filter (partial contains-all-product-words? listing) %)))
        (#(if (-> % count (= 1)) % (apply remove-contained-items %)))))
 
-(defn match-listing-to-products [products listing]
-  (->> listing
-       (which-product products)
-       (#(cond
-          (->> % count (= 1)) (-> % first :product_name)
-          :else :no-definitive-match))
-       )
-  )
-
-(defn divide-and-conquer [number-of-threads func combining-func coll]
+(defn divide-and-conquer [combining-func number-of-threads func coll]
   (let [sections (partition-all (/ (count coll) number-of-threads) coll)
         result-chan (chan)]
     (doall (map #(go (>! result-chan (func %))) sections))
     (combining-func (take (count sections) (repeatedly #(<!! result-chan))))))
+
+(def divide-and-merge (partial divide-and-conquer #(apply merge-with concat %) 8))
 
 (defn label-pairs [labels & pairs]
   (for [pair pairs]
@@ -117,17 +111,58 @@
     (binding [*out* writer]
       (println contents))))
 
-(defn link-records [products listings]
-  (->> LISTINGS
-       (divide-and-conquer 64 #(group-by (partial match-listing-to-products PRODUCTS) %) #(apply merge-with concat %))
-       (filter #(-> % first (= :no-definitive-match) not))
-       (apply label-pairs [:product_name :listings])))
+(defn match-type [[products]]
+  (cond
+    (->> products count (= 1)) :single-match
+    (->> products count (< 1)) :multiple-product-matches
+    :else :no-match
+    ))
 
-(defn -main [output-file]
-  (->> [PRODUCTS LISTINGS]
-       (apply link-records)
+(defn ->categories [product-matches]
+  (let [{:keys [single-match multiple-product-matches no-match]} (group-by match-type product-matches)]
+    {:single-match             (->> single-match
+                                    (map #(vector (:product_name (first (first %))) (second %)))
+                                    (apply label-pairs [:product_name :listings]))
+     :multiple-product-matches (into {} multiple-product-matches)
+     :no-match                 (second (first no-match))}))
+
+(defn write-results [output-location result-data]
+  (->> result-data
        (map #(json/write-str % :escape-unicode false))
        (interpose "\n")
        (apply str)
-       (write-to-file! output-file)
-       time))
+       (write-to-file! output-location)))
+
+(defn header [header-str]
+  (->> ["===================================================="
+        "===================================================="
+        header-str
+        "===================================================="
+        "====================================================\n"]
+       (interpose "\n")
+       (apply str)))
+
+
+(defn -main [& [result-output-file secondary-output-file]]
+  (let [result-output-file (or result-output-file "results.txt")
+        secondary-output-file (or secondary-output-file "secondary.txt")]
+    (println "Okay!  Java's done loading clojure.")
+    (println (str "So, we'll be writing the primary match results to " result-output-file))
+    (println (str "And anything that doesn't get properly matched will be output to " secondary-output-file))
+    (->> LISTINGS
+         (progress->out "linking records...")
+         (divide-and-merge #(group-by (partial which-product PRODUCTS) %))
+         (progress->out "categorizing output..")
+         (divide-and-merge ->categories)
+         (#(let [{:keys [multiple-product-matches single-match no-match]} %]
+            (println "preparing positive match data for write")
+            (write-results result-output-file single-match)
+            (println (str "wrote positive match results to " result-output-file))
+
+            (println "preparing secondary data for write")
+            (spit secondary-output-file (header "MULTIPLE MATCHES") :append true)
+            (write-results secondary-output-file multiple-product-matches)
+            (spit secondary-output-file (header "NO SUITABLE MATCH MATCH") :append true)
+            (write-results secondary-output-file no-match)
+            (println (str "writing inconclusive and no match results to " secondary-output-file))))
+         time)))

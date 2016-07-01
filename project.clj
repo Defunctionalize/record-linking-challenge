@@ -1,4 +1,4 @@
-(defproject sortable-challenge "0.8.2"
+(defproject sortable-challenge "0.9.0"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :resource-paths ["resources"]
@@ -9,5 +9,4 @@
                  [org.clojure/core.async "0.2.385"]
                  [org.clojure/data.json "0.2.6"]
                  [org.clojure/math.combinatorics "0.1.3"]]
-  :aot :all
   :main sortable-challenge.core)
