@@ -4,19 +4,16 @@
             [clojure.java.io :as io]
             [clojure.core.async :refer [go <!! >!! <! >! chan onto-chan close!]]
             [clojure.math.combinatorics :refer [combinations]]
-            [clojure.set :refer [superset?]]
-            [clojure.data :refer [diff]]
-            [clojure.test :as test]
-            )
+            [clojure.set :refer [superset?]])
   (:gen-class))
 
-(def SEPARATOR-PATTERN-STR "[\\s\\_\\-]")
-(def ->non-capture-group #(str "(?:" % ")"))
-(def surrounded-by-sep #(str SEPARATOR-PATTERN-STR % SEPARATOR-PATTERN-STR))
-(defn split-digit-letter-pairs [word]  (str/split word #"(?<=\d)(?=[^\d])|(?<=[^\d])(?=\d)"))
 (def ->case-insensitive-pattern #(->> % (str "(?i)") re-pattern))
+(def ->non-capture-group #(str "(?:" % ")"))
+(def SEPARATOR-PATTERN-STR "[\\s\\_\\-]")
 (def SEPARATOR-PATTERN (->case-insensitive-pattern SEPARATOR-PATTERN-STR))
+(def surrounded-by-sep #(str SEPARATOR-PATTERN-STR % SEPARATOR-PATTERN-STR))
 (def split-words #(str/split % SEPARATOR-PATTERN))
+(defn split-digit-letter-pairs [word]  (str/split word #"(?<=\d)(?=[^\d])|(?<=[^\d])(?=\d)"))
 (defn split-and-isolate-digits [string] (->> string split-words (map split-digit-letter-pairs) flatten))
 
 (defn ->data [str-list]
@@ -134,67 +131,3 @@
        (apply str)
        (write-to-file! output-file)
        time))
-
-(def example-listing {:title       "Fujifilm FinePix S2500HD 12MP Digital Camera with 18x Optical Dual Image Stabilized Zoom BigVALUEInc Accessory Saver 16GB NiMH Bundle",
-                                   :manufacturer "Fuji",
-                      :currency     "USD",
-                      :price        "239.95"})
-(def example-product {:product_name  "Fujifilm_FinePix_S2500HD",
-                                     :manufacturer   "Fujifilm",
-                      :model          "S2500HD",
-                      :family         "FinePix",
-                      :announced-date "2010-02-01T19:00:00.000-05:00"})
-
-(def no-difference #(->> % (take 2) (= [nil nil])))
-
-(->> [[:a :b] ["hello" "world"]]
-     (apply label-pairs)
-     (diff [{:a "hello" :b "world"}])
-     no-difference
-     test/is)
-
-(->> [{:product_name "pentax-wg-1-gps", :manufacturer "pentax", :model "wg-1 gps", :family "optio", :announced-date "2011-02-06t19:00:00.000-05:00"}
-      {:product_name "pentax-wg-1", :manufacturer "pentax", :model "wg-1", :family "optio", :announced-date "2011-02-06t19:00:00.000-05:00"}]
-     (apply remove-contained-items)
-     (diff [{:product_name "pentax-wg-1-gps", :manufacturer "pentax", :model "wg-1 gps", :family "optio", :announced-date "2011-02-06t19:00:00.000-05:00"}])
-     no-difference
-     test/is)
-
-(->> [{:product_name "canon_eos_500d", :manufacturer "canon", :model "500d", :family "eos", :announced-date "2009-03-24t20:00:00.000-04:00"}
-      {:product_name "canon_eos_rebel_t1i", :manufacturer "canon", :model "t1i", :family "rebel", :announced-date "2009-03-24t20:00:00.000-04:00"}]
-     (apply remove-contained-items)
-     (diff [{:product_name "canon_eos_500d", :manufacturer "canon", :model "500d", :family "eos", :announced-date "2009-03-24t20:00:00.000-04:00"}
-            {:product_name "canon_eos_rebel_t1i", :manufacturer "canon", :model "t1i", :family "rebel", :announced-date "2009-03-24t20:00:00.000-04:00"}])
-     no-difference
-     test/is)
-
-(->> [[{:product_name "Fujifilm_FinePix_S2500HD", :manufacturer "Fujifilm", :model "S2500HD", :family "FinePix", :announced-date "2010-02-01T19:00:00.000-05:00"}]
-      {:title "Fujifilm FinePix S2500HD 12MP Digital Camera with 18x Optical Dual Image Stabilized Zoom BigVALUEInc Accessory Saver 16GB NiMH Bundle", :manufacturer "Fuji", :currency "USD", :price "239.95"}]
-     (apply which-product)
-     (diff [{:product_name "Fujifilm_FinePix_S2500HD", :manufacturer "Fujifilm", :model "S2500HD", :family "FinePix", :announced-date "2010-02-01T19:00:00.000-05:00"}])
-     no-difference
-     test/is)
-
-(->> [example-listing example-product]
-     (apply contains-model?)
-     (diff " S2500HD ")
-     no-difference
-     test/is)
-
-(->> [example-listing example-product]
-     (apply contains-all-product-words?)
-     (diff true)
-     no-difference
-     test/is)
-
-(->> [example-listing example-product]
-     (apply manufacturer-match?)
-     (diff true)
-     no-difference
-     test/is)
-
-(->> [example-listing example-product]
-     (apply contains-all-product-words?)
-     (diff true)
-     no-difference
-     test/is)
