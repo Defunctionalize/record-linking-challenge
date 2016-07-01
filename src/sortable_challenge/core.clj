@@ -98,7 +98,7 @@
     (doall (map #(go (>! result-chan (func %))) sections))
     (combining-func (take (count sections) (repeatedly #(<!! result-chan))))))
 
-(def divide-and-merge (partial divide-and-conquer #(apply merge-with concat %) 8))
+(def divide-and-merge (partial divide-and-conquer #(apply merge-with concat %) 64))
 
 (defn label-pairs [labels & pairs]
   (for [pair pairs]
@@ -131,6 +131,7 @@
        (map #(json/write-str % :escape-unicode false))
        (interpose "\n")
        (apply str)
+       (str/trim)
        (write-to-file! output-location)))
 
 (defn header [header-str]
@@ -152,17 +153,13 @@
     (->> LISTINGS
          (progress->out "linking records...")
          (divide-and-merge #(group-by (partial which-product PRODUCTS) %))
-         (progress->out "categorizing output..")
          (divide-and-merge ->categories)
          (#(let [{:keys [multiple-product-matches single-match no-match]} %]
-            (println "preparing positive match data for write")
             (write-results result-output-file single-match)
             (println (str "wrote positive match results to " result-output-file))
-
-            (println "preparing secondary data for write")
             (spit secondary-output-file (header "MULTIPLE MATCHES") :append true)
             (write-results secondary-output-file multiple-product-matches)
             (spit secondary-output-file (header "NO SUITABLE MATCH MATCH") :append true)
             (write-results secondary-output-file no-match)
-            (println (str "writing inconclusive and no match results to " secondary-output-file))))
+            (println (str "wrote inconclusive and no match results to " secondary-output-file))))
          time)))
