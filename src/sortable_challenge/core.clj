@@ -7,7 +7,7 @@
             [clojure.set :refer [superset?]])
   (:gen-class))
 
-(defmacro ->let [binding body value] `(let [~binding ~value] ~body))
+(defmacro let-> [binding body value] `(let [~binding ~value] ~body))
 
 (def ->case-insensitive-pattern #(->> % (str "(?i)") re-pattern))
 (def ->non-capture-group #(str "(?:" % ")"))
@@ -156,7 +156,7 @@
          (progress->out "linking records...")
          (divide-and-merge #(group-by (partial which-product PRODUCTS) %))
          (divide-and-merge ->categories)
-         (->let
+         (let->
            {:keys [multiple-product-matches single-match no-match]}
            (do
              (spit result-output-file (prettify-records single-match) :append true)
