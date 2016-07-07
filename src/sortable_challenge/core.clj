@@ -34,9 +34,9 @@
 
 (defn contains-all-family-words? [listing product]
   "does the given listing title contain all the words words listed in the 'family' tag?"
-  (let [{:keys [family]} product
+  (let [{:keys [family] :or {family ""}} product
         {:keys [title]} listing
-        family-words (split-and-isolate-digits (or family ""))]
+        family-words (split-and-isolate-digits family)]
     (->> family-words
          (map ->non-capture-group)
          (interpose "|")
