@@ -7,6 +7,8 @@
             [clojure.set :refer [superset?]])
   (:gen-class))
 
+(defmacro ->let [binding body value] `(let [~binding ~value] ~body))
+
 (def ->case-insensitive-pattern #(->> % (str "(?i)") re-pattern))
 (def ->non-capture-group #(str "(?:" % ")"))
 (def SEPARATOR-PATTERN-STR "[\\s\\_\\-]")
@@ -154,12 +156,16 @@
          (progress->out "linking records...")
          (divide-and-merge #(group-by (partial which-product PRODUCTS) %))
          (divide-and-merge ->categories)
-         (#(let [{:keys [multiple-product-matches single-match no-match]} %]
-            (spit result-output-file (prettify-records single-match) :append true)
-            (println (str "wrote positive match results to " result-output-file))
-            (spit secondary-output-file (header "MULTIPLE MATCHES") :append true)
-            (spit secondary-output-file (prettify-records multiple-product-matches) :append true)
-            (spit secondary-output-file (header "NO SUITABLE MATCH MATCH") :append true)
-            (spit secondary-output-file (prettify-records no-match) :append true)
-            (println (str "wrote inconclusive and no match results to " secondary-output-file))))
+         (->let
+           {:keys [multiple-product-matches single-match no-match]}
+           (do
+             (spit result-output-file (prettify-records single-match) :append true)
+             (println (str "wrote positive match results to " result-output-file))
+             (spit secondary-output-file (header "MULTIPLE MATCHES") :append true)
+             (spit secondary-output-file (prettify-records multiple-product-matches) :append true)
+             (spit secondary-output-file (header "NO SUITABLE MATCH MATCH") :append true)
+             (spit secondary-output-file (prettify-records no-match) :append true)
+             (println (str "wrote inconclusive and no match results to " secondary-output-file))))
          time)))
+
+(-main)
